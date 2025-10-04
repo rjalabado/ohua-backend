@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
   "dependencies": {
     "@azure/data-tables": "^13.3.1",
     "@line/bot-sdk": "^10.3.0",
