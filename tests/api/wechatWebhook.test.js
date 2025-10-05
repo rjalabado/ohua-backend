@@ -6,14 +6,18 @@ const wechatWebhook = require('../../src/api/wechatWebhook');
 // Mock environment variables
 process.env.WECOM_CALLBACK_TOKEN = 'test_token_123';
 process.env.WECOM_AES_KEY = 'testAESKey1234567890123456789012345678901234567890123';
+process.env.WECOM_MOCK_MESSAGES = 'true';
 
 describe('WeChat Work Webhook', () => {
     let app;
 
     beforeAll(() => {
         app = express();
+        // Add middleware to handle XML content types
+        app.use(express.text({ type: 'text/xml' }));
+        app.use(express.text({ type: 'application/xml' }));
         app.use(express.json());
-        app.use(wechatWebhook);
+        app.use('/webhook/wechat', wechatWebhook);
     });
 
     // Helper function to generate WeChat Work signature

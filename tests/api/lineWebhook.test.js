@@ -22,7 +22,7 @@ describe('LINE Webhook', () => {
         // Create Express app with middleware
         app = express();
         app.use(express.json());
-        app.use(lineWebhook);
+        app.use('/webhook/line', lineWebhook);
         
         // Mock sendLineReply to resolve successfully
         sendLineReply.mockResolvedValue({ success: true });

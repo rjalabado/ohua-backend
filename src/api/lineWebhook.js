@@ -31,12 +31,65 @@ function validateLineSignature(req, res, next) {
 }
 
 const { sendLineReply } = require('./lineRelay');
+const { sendWeComMessage } = require('./wechatRelay');
+const { translationService } = require('../services/translationService');
+const { userMappingService } = require('../services/userMappingService');
 const axios = require('axios');
+
+// Relay message from LINE to WeChat with translation
+async function relayToWeChat(lineUserId, message, messageType = 'text') {
+    try {
+        // Get mapped WeChat user
+        const wechatUserId = userMappingService.getWeChatUserFromLine(lineUserId);
+        if (!wechatUserId) {
+            console.log(`No WeChat mapping found for LINE user: ${lineUserId}`);
+            return false;
+        }
+
+        // Only translate and relay text messages for now
+        if (messageType === 'text' && message) {
+            // Translate message to Chinese
+            const translatedMessage = await translationService.translateToChinese(message);
+            
+            // Send to WeChat
+            const success = await sendWeComMessage(wechatUserId, translatedMessage, 'text');
+            if (success) {
+                console.log(`Message relayed from LINE to WeChat: ${lineUserId} -> ${wechatUserId}`);
+                return true;
+            } else {
+                console.error(`Failed to send message to WeChat user: ${wechatUserId}`);
+                return false;
+            }
+        } else {
+            console.log(`Message type ${messageType} not supported for relay yet`);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error relaying message to WeChat:', error);
+        return false;
+    }
+}
 
 // Handle different message types
 async function handleMessageEvent(event) {
+    // Validate required fields
+    if (!event.message) {
+        console.log('Message event missing message data, skipping');
+        return;
+    }
+    
+    if (!event.source || !event.source.userId) {
+        console.log('Message event missing source user ID, skipping');
+        return;
+    }
+    
+    if (!event.replyToken) {
+        console.log('Message event missing reply token, skipping');
+        return;
+    }
+    
     const messageType = event.message.type;
-    const userId = event.source?.userId;
+    const userId = event.source.userId;
     const messageId = event.message.id;
     
     console.log(`Received ${messageType} message from user: ${userId}`);
@@ -51,9 +104,17 @@ async function handleMessageEvent(event) {
                 console.log('Message quotes another message:', event.message.quotedMessageId);
             }
             
-            // Send echo reply for text messages
-            const replyMessage = `Echo: ${event.message.text}`;
-            await sendLineReply(event.replyToken, replyMessage);
+            // Relay message to WeChat (translate to Chinese)
+            const relaySuccess = await relayToWeChat(userId, event.message.text, 'text');
+            
+            // Send confirmation reply to LINE
+            if (relaySuccess) {
+                await sendLineReply(event.replyToken, '✅ メッセージをWeChatに転送しました (Message forwarded to WeChat)');
+            } else {
+                // Still send echo if relay fails
+                const replyMessage = `Echo: ${event.message.text}`;
+                await sendLineReply(event.replyToken, replyMessage);
+            }
             break;
             
         case 'image':
@@ -61,7 +122,15 @@ async function handleMessageEvent(event) {
             if (event.message.contentProvider?.type === 'line') {
                 console.log('Image stored on LINE servers - can be retrieved via API');
             }
-            await sendLineReply(event.replyToken, 'I received your image! 📷');
+            
+            // Try to relay image notification to WeChat
+            const imageRelaySuccess = await relayToWeChat(userId, '📷 画像が送信されました (Image sent)', 'text');
+            
+            if (imageRelaySuccess) {
+                await sendLineReply(event.replyToken, '✅ 画像通知をWeChatに送信しました (Image notification sent to WeChat)');
+            } else {
+                await sendLineReply(event.replyToken, 'I received your image! 📷');
+            }
             break;
             
         case 'video':
@@ -99,7 +168,18 @@ async function handleMessageEvent(event) {
             if (event.message.keywords) {
                 console.log(`Sticker keywords: ${event.message.keywords.join(', ')}`);
             }
-            await sendLineReply(event.replyToken, 'Nice sticker! 😄');
+            
+            // Try to relay sticker as emoji to WeChat
+            const stickerMessage = event.message.keywords?.length > 0 
+                ? `😄 ${event.message.keywords.join(' ')} (スタンプ sent a sticker)`
+                : '😄 スタンプが送信されました (Sticker sent)';
+            const stickerRelaySuccess = await relayToWeChat(userId, stickerMessage, 'text');
+            
+            if (stickerRelaySuccess) {
+                await sendLineReply(event.replyToken, '✅ スタンプ情報をWeChatに送信しました (Sticker info sent to WeChat)');
+            } else {
+                await sendLineReply(event.replyToken, 'Nice sticker! 😄');
+            }
             break;
             
         default:
@@ -164,7 +244,7 @@ async function handleUnsendEvent(event) {
 }
 
 // LINE webhook handler
-router.post('/webhook/line', validateLineSignature, async (req, res) => {
+router.post('/', validateLineSignature, async (req, res) => {
     try {
         console.log('Received LINE webhook event');
 
