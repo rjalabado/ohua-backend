@@ -8,10 +8,25 @@ const axios = require('axios');
 class TranslationService {
     constructor() {
         this.openaiApiKey = process.env.OPENAI_API_KEY;
-        this.timeout = 10000;
+        this.openaiModel = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+        this.timeout = parseInt(process.env.REQUEST_TIMEOUT) || 10000;
         
-        if (!this.openaiApiKey) {
-            console.warn('OpenAI API key not configured. Translation will fall back to original text.');
+        // Environment validation
+        this.validateEnvironment();
+    }
+
+    /**
+     * Validate required environment variables
+     */
+    validateEnvironment() {
+        const requiredVars = ['OPENAI_API_KEY'];
+        const missingVars = requiredVars.filter(varName => !process.env[varName]);
+        
+        if (missingVars.length > 0) {
+            console.warn(`⚠️  Missing environment variables: ${missingVars.join(', ')}`);
+            console.warn('🔄 Translation will fall back to original text.');
+        } else {
+            console.log('✅ Translation service initialized successfully');
         }
     }
 

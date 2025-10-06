@@ -2,6 +2,8 @@
 node_modules/
 npm-debug.log*
 .env
+.env.local
+.env.azure
 
 # Logs
 logs/
@@ -13,6 +15,12 @@ coverage/
 # Build artifacts
 dist/
 build/
+
+# Azure
+.azure/
+*.publishsettings
+*.pubxml
+deployment.zip
 
 # OS-specific files
 Thumbs.db

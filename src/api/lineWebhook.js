@@ -6,14 +6,18 @@ const crypto = require('crypto');
 function validateLineSignature(req, res, next) {
     // WARNING: Set DISABLE_SIGNATURE_VALIDATION=false in production for security
     if (process.env.DISABLE_SIGNATURE_VALIDATION === 'true') {
-        console.log('Signature validation disabled');
+        console.log('⚠️  LINE signature validation disabled - FOR DEVELOPMENT ONLY');
         return next();
     }
 
     const channelSecret = process.env.LINE_CHANNEL_SECRET;
     if (!channelSecret) {
-        console.error('LINE_CHANNEL_SECRET not configured');
-        return res.status(500).send('Server configuration error');
+        console.error('❌ LINE_CHANNEL_SECRET not configured in environment variables');
+        return res.status(500).json({ 
+            error: 'Server configuration error', 
+            message: 'LINE channel secret not configured',
+            timestamp: new Date().toISOString()
+        });
     }
 
     const body = JSON.stringify(req.body);
