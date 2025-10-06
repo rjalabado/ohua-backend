@@ -231,11 +231,11 @@ curl https://ohua-backend.azurewebsites.net/health
 # Expected: {"status":"healthy","timestamp":"..."}
 ```
 
-### 5.2 Test Environment Variables
+### 5.2 Verify Environment Variables
 ```bash
-# Test environment configuration endpoint (remove after testing)
-curl https://ohua-backend.azurewebsites.net/env-check
-# Should show: HAS_LINE_SECRET: true, HAS_OPENAI_KEY: true, etc.
+# Check that environment variables are properly configured in Azure Portal
+# Go to: App Service → Configuration → Application settings
+# Verify all required settings are present and have values (masked for security)
 ```
 
 ### 5.3 Test Translation
@@ -377,7 +377,7 @@ az webapp config appsettings set \
 
 ### ✅ Post-Deployment
 - [ ] Health endpoint responds: `/health`
-- [ ] Environment check endpoint works: `/env-check` (remove after testing)
+- [ ] All environment variables configured in Application Settings
 - [ ] LINE webhook configured and verified
 - [ ] WeChat webhook configured (if using)
 - [ ] SSL/HTTPS enforced
